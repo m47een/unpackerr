@@ -170,6 +170,14 @@ func (u *Unpackerr) extractCompletedDownload(name string, now time.Time, item *E
 
 			return
 		}
+
+		if have, want, waiting := syncthingIncomplete(item, now); waiting {
+			u.Printf("[%s] Completed item still syncing: %s, have %s of %s from the Starr app",
+				item.Label(), name, bytefmt.ByteSize(have), bytefmt.ByteSize(want))
+			u.setItemNote(name, item, noteWaitingSyncthing)
+
+			return
+		}
 	}
 
 	// Snapshot once per queue item: retries must not recapture leftovers that

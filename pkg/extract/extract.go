@@ -58,6 +58,13 @@ type Extract struct {
 	NoRetry bool
 	// MaxBytes is the resolved byte cap for this Starr item (0 = unlimited).
 	MaxBytes uint64
+	// Size is the total download size the Starr app reports for this item (0 = unknown).
+	// With Syncthing enabled it is used to wait until every file has arrived locally.
+	Size uint64
+	// SyncSeen is the last local byte count measured for a Syncthing item, and
+	// SyncSeenAt is when that count last changed. Used to detect a stalled sync.
+	SyncSeen   uint64
+	SyncSeenAt time.Time
 }
 
 // Label is the human-facing instance name, or the dialect when Name is empty.
