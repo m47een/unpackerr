@@ -112,7 +112,7 @@ func (u *Unpackerr) historyRestoreGate(
 	kind := u.historyKind(rec)
 	// Saved WAITING is folder-only (Starr poll recreates WAITING). QUEUED still
 	// maps to WAITING above and must restore for Starr titles.
-	if rec.Status == WAITING && kind != FolderString {
+	if rec.Status == WAITING && kind != FolderString && rec.Units == nil {
 		return "", time.Time{}, 0, "", "", false
 	}
 
@@ -154,6 +154,12 @@ func (u *Unpackerr) extractFromHistoryRecord(
 		PreFiles:       preFilesFromKeys(rec.PreFiles),
 		IDs:            cloneIDs(rec.IDs),
 		Event:          rec.Event,
+		Units:          cloneUnits(rec.Units),
+	}
+
+	if item.Units != nil && item.Units.Round != "" && item.PreFiles != nil {
+		// The saved listing belongs to the round that was running; a retry of that unit reuses it.
+		item.Units.Snaps = map[string]map[string]os.FileInfo{item.Units.Round: item.PreFiles}
 	}
 
 	if rec.App != "" && rec.App != kind {
