@@ -79,6 +79,8 @@ github.com/lestrrat-go/envload v0.0.0-20180220234015-a3eb8ddeffcc/go.mod h1:kopu
 github.com/lestrrat-go/strftime v1.0.4/go.mod h1:E1nN3pCbtMSu1yjSVeyuRFVm/U0xoR76fd03sz+Qz4g=
 github.com/lestrrat-go/strftime v1.2.0 h1:8fAUYOeaJKCuLzNvUWBAo8t6I6hkFfodDTndEzJIun0=
 github.com/lestrrat-go/strftime v1.2.0/go.mod h1:GtsIA/7ddIGJjEdfadUafEb1sbutvlvpMdPCMglykYo=
+github.com/m47een/xtractr v0.8.1-0.20261114142033-2fe92c2d774b h1:O6FaXezLoY1ypMW/hp9/TxlfZwzyM/YBMrD/aF+xXW0=
+github.com/m47een/xtractr v0.8.1-0.20261114142033-2fe92c2d774b/go.mod h1:HAZlpoGzNpDkF+Iwe33PM5HEeCHpalFXBBVPaHgw2z8=
 github.com/mewkiz/flac v1.0.14 h1:hyRGAM8NCKznoPmIi9zz2jyO+nfmxY2ErqBnHZ+gxh4=
 github.com/mewkiz/flac v1.0.14/go.mod h1:HfPYDA+oxjyuqMu2V+cyKcxF51KM6incpw5eZXmfA6k=
 github.com/mewkiz/pkg v0.0.0-20260703220044-4fb89b18cc87 h1:fpWNLIg7nX2f+D+6ZveQ5hfkTjq5WgMBtYbz5Nb1w0Y=
@@ -188,8 +190,6 @@ golift.io/udf v0.1.0 h1:arzc1C6Ko9MR2lvpZuZ1WXceGkUxsTOvxg3NIiX6iiA=
 golift.io/udf v0.1.0/go.mod h1:rw8k1sEHRzKZJCgBFfSPolPb0CpyS0apwoeOwwQQM6o=
 golift.io/version v0.0.2 h1:i0gXRuSDHKs4O0sVDUg4+vNIuOxYoXhaxspftu2FRTE=
 golift.io/version v0.0.2/go.mod h1:76aHNz8/Pm7CbuxIsDi97jABL5Zui3f2uZxDm4vB6hU=
-golift.io/xtractr v0.8.0 h1:89Fji7Zz6Md/gujal2QjJ3D93XbRlOjrMLO+xc1DlG8=
-golift.io/xtractr v0.8.0/go.mod h1:HAZlpoGzNpDkF+Iwe33PM5HEeCHpalFXBBVPaHgw2z8=
 google.golang.org/protobuf v1.36.12 h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
 google.golang.org/protobuf v1.36.12/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
