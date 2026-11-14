@@ -25,6 +25,7 @@ const (
 	qbitUnused  qbitState = iota // no qBittorrent answer; use the other checks.
 	qbitWaiting                  // a selected file is missing, short, or still syncing.
 	qbitReady                    // every selected file is in place.
+	qbitUnit                     // one folder of a split download is ready (Units.Round).
 )
 
 // waitForDelivery reports whether a completed download must keep waiting for its
@@ -44,9 +45,13 @@ func (u *Unpackerr) waitForDelivery(name string, item *Extract, now time.Time) b
 	switch u.qbitCheck(name, item, now) {
 	case qbitWaiting:
 		return true
-	case qbitReady:
+	case qbitReady, qbitUnit:
 		return false
 	case qbitUnused:
+	}
+
+	if item.Units != nil {
+		item.Units.Round = "" // no file list: extract every remaining folder at once.
 	}
 
 	return item.Syncthing && u.syncthingIncomplete(name, item, now)
@@ -90,6 +95,10 @@ func (u *Unpackerr) qbitCheck(name string, item *Extract, now time.Time) qbitSta
 
 	item.SyncSeenAt = time.Time{} // a later fallback to the size check starts a fresh window.
 
+	if state, split := u.unitCheck(name, item, now, &check); split {
+		return state
+	}
+
 	if check.missing == 0 && check.temp == "" {
 		if item.Note == noteWaitingFiles || item.Note == noteWaitingSyncthing {
 			u.Printf("[%s] Completed item has all %d files from qBittorrent in place: %s", item.Label(), check.files, name)
@@ -131,6 +140,10 @@ type torrentCheck struct {
 	have, want     uint64
 	firstMissing   string
 	temp           string
+	// units holds the same counts per top-level folder; topArchive is true when
+	// an archive sits directly in the download folder (see units.go).
+	units      map[string]*unitCheck
+	topArchive bool
 }
 
 // checkTorrentFiles compares qBittorrent's file list with the disk. Names are relative
@@ -155,6 +168,7 @@ func checkTorrentFiles(downloadPath string, files []qbitFile) (torrentCheck, boo
 
 		check.files++
 		check.want += uint64(max(file.Size, 0))
+		unit := check.addUnitFile(rel)
 
 		info, err := os.Stat(filepath.Join(base, rel))
 		if err == nil && info.Mode().IsRegular() && info.Size() == file.Size {
@@ -167,6 +181,10 @@ func checkTorrentFiles(downloadPath string, files []qbitFile) (torrentCheck, boo
 		}
 
 		check.missing++
+
+		if unit != nil {
+			unit.missing++
+		}
 	}
 
 	if check.files == 0 {

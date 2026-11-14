@@ -87,7 +87,7 @@ func (u *Unpackerr) checkQueueChanges(now time.Time) {
 		case !u.haveQitem(name, data.App):
 			// This fires when an items becomes missing (imported/deleted) from the application queue.
 			switch elapsed := now.Sub(data.Updated); {
-			case data.Status == WAITING:
+			case data.Status == WAITING && !hasUnitOutput(data):
 				// A waiting item just fell out of the queue. We never extracted it. Remove it and move on.
 				u.deleteExtract(name)
 				u.Printf("[%v] Imported: %v (not extracted, removing from history)", data.Label(), name)
@@ -97,6 +97,10 @@ func (u *Unpackerr) checkQueueChanges(now time.Time) {
 			case data.Status == IMPORTED:
 				u.Debugf("%v: Awaiting Delete Delay (%v remains): %v",
 					data.Label(), data.DeleteDelay-elapsed.Round(time.Second), name)
+			case data.Status == WAITING: // a split item left the queue before its last folder.
+				u.updateQueueStatus(&newStatus{Name: name, Status: IMPORTED, Resp: unitOutputResp(data)}, now, true)
+				u.Printf("[%v] Imported: %v with %d of %d folders extracted (delete in %v)",
+					data.Label(), name, len(data.Units.Done), len(data.Units.All), data.DeleteDelay)
 			default:
 				u.updateQueueStatus(&newStatus{Name: name, Status: IMPORTED, Resp: data.Resp}, now, true)
 				u.Printf("[%v] Imported: %v (delete in %v)", data.Label(), name, data.DeleteDelay)
@@ -173,9 +177,14 @@ func (u *Unpackerr) extractCompletedDownload(name string, now time.Time, item *E
 		return
 	}
 
-	// Snapshot once per queue item: retries must not recapture leftovers that
-	// failed to clear into download content.
-	snap, err := keepDirSnapshot(item.PreFiles, archiveSnapshotPaths(item.Path, files)...)
+	path, accept, files := u.roundFiles(name, item, files, now)
+	if len(files) == 0 {
+		return
+	}
+
+	// Snapshot once per queue item (per unit for a split item): retries must not
+	// recapture leftovers that failed to clear into download content.
+	snap, err := roundSnapshot(item, archiveSnapshotPaths(path, files))
 	u.markItemQueued(name, item, snap, err, now)
 
 	// This queues the extraction. Which may start right away.
@@ -183,8 +192,10 @@ func (u *Unpackerr) extractCompletedDownload(name string, now time.Time, item *E
 		Password:       u.getPasswordFromPath(item.Path),
 		Passwords:      u.Passwords,
 		Name:           name,
-		Path:           item.Path,
+		Path:           path,
+		Accept:         accept,
 		ExcludeSuffix:  xtractr.AllExcept(starrArchiveTypes(item)...),
+		ExtractTo:      roundExtractTo(item, path),
 		APEOpts:        apeOpts(item),
 		MaxBytes:       item.MaxBytes,
 		MaxFiles:       defaultMaxFiles,
@@ -409,6 +420,11 @@ func (u *Unpackerr) handleXtractrCallback(resp *xtractr.Response) { //nolint:fun
 		return
 	}
 
+	restart := remnants && remnantStatus == WAITING
+	if item.Units != nil && !restart && u.unitCallback(item, resp, remnants, now) {
+		return
+	}
+
 	switch {
 	case remnants && remnantStatus == WAITING:
 		// Every blocker was cleared; re-extract into the empty destination.
@@ -423,6 +439,11 @@ func (u *Unpackerr) handleXtractrCallback(resp *xtractr.Response) { //nolint:fun
 		item.Status = WAITING
 		item.Updated = now
 		item.Resp = resp
+
+		if item.Units != nil {
+			item.Units.Round = "" // the unit is picked again; its snapshot is kept.
+		}
+
 		u.Printf("[%s] Cleared interrupted-extraction remnant(s), restarting extraction: %s", item.Label(), resp.X.Name)
 		u.notifyQueueLocked()
 	case remnants:

@@ -2,6 +2,7 @@ package extract
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -70,6 +71,29 @@ type Extract struct {
 	SyncSeenAt time.Time
 	// QbitLogAt is when the qBittorrent file check last logged for this item.
 	QbitLogAt time.Time
+	// Units is set when a multi-folder download (a season pack) is extracted one
+	// folder at a time as each folder's files arrive. Nil means one extraction.
+	Units *Units
+}
+
+// Units tracks a download that is extracted one top-level folder (unit) at a time.
+// It is saved in the history file so a restart neither repeats nor forgets a unit.
+type Units struct {
+	// All is every top-level folder of the download that holds an archive.
+	All []string `json:"all"`
+	// Done are the units extracted so far, Dead the units that failed for good.
+	Done []string `json:"done,omitempty"`
+	Dead []string `json:"dead,omitempty"`
+	// Files are the files written by finished unit rounds, for clean-up after import.
+	Files []string `json:"files,omitempty"`
+	// Fails counts failed rounds per unit; FailedAt is when the last one failed.
+	Fails    map[string]uint      `json:"fails,omitempty"`
+	FailedAt map[string]time.Time `json:"failedAt,omitempty"`
+	// Round is the unit being extracted now; a restart re-extracts it.
+	Round string `json:"round,omitempty"`
+	// Snaps are per-unit pre-extraction listings (see Extract.PreFiles). Kept in
+	// memory; the round's listing is also saved as PreFiles.
+	Snaps map[string]map[string]os.FileInfo `json:"-"`
 }
 
 // Label is the human-facing instance name, or the dialect when Name is empty.
@@ -83,4 +107,18 @@ func (e *Extract) Label() string {
 	}
 
 	return string(e.App)
+}
+
+// Has reports whether a unit needs no more work: extracted, or failed for good.
+func (u *Units) Has(name string) bool {
+	return u != nil && (slices.Contains(u.Done, name) || slices.Contains(u.Dead, name))
+}
+
+// LastFail is when a unit's last round failed (zero if it never failed).
+func (u *Units) LastFail(name string) time.Time {
+	if u == nil {
+		return time.Time{}
+	}
+
+	return u.FailedAt[name]
 }

@@ -3,6 +3,7 @@ package unpackerr
 import (
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -56,7 +57,12 @@ func syncthingProgress(item *Extract, now time.Time) (uint64, syncState) {
 		return 0, syncDone // size unknown; the .tmp check is all we have.
 	}
 
-	have, active := scanSyncthingDownload(item.Path)
+	var skip []string
+	if item.Units != nil {
+		skip = item.Units.Files // already-extracted output is not delivered data.
+	}
+
+	have, active := scanSyncthingDownload(item.Path, skip...)
 	if have >= item.Size {
 		return have, syncDone
 	}
@@ -79,15 +85,20 @@ func syncthingProgress(item *Extract, now time.Time) (uint64, syncState) {
 // file. Temp files do not count as delivered: Syncthing may size a temp file to
 // its final length before writing it. Their modification time shows that a large
 // file is still being written even while the finished byte count stays the same.
-func scanSyncthingDownload(path string) (uint64, time.Time) {
+func scanSyncthingDownload(path string, skip ...string) (uint64, time.Time) {
 	var (
 		have   uint64
 		active time.Time
 	)
 
-	_ = filepath.WalkDir(path, func(_ string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
+	_ = filepath.WalkDir(path, func(file string, entry fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
 			return nil //nolint:nilerr // Syncthing renames files while we walk; skip what vanished.
+		case slices.Contains(skip, file) && entry.IsDir():
+			return fs.SkipDir
+		case entry.IsDir(), slices.Contains(skip, file):
+			return nil
 		}
 
 		info, err := entry.Info()

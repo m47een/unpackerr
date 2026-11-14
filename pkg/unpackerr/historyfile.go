@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Unpackerr/unpackerr/pkg/extract"
 	"golift.io/xtractr"
 )
 
@@ -73,6 +74,7 @@ type HistoryRecord struct {
 	Event          string              `json:"event,omitempty"`
 	Queue          int                 `json:"queue,omitempty"`  // xtractr waiting count when this extract started.
 	Output         string              `json:"output,omitempty"` // xtractr dest folder.
+	Units          *extract.Units      `json:"units,omitempty"`  // a download extracted folder by folder.
 }
 
 // QueueItem is a live in-flight extract for GET /api/queue.
@@ -134,8 +136,8 @@ func isPersistedHistory(item *Extract) bool {
 		return false
 	}
 
-	if item.Status == WAITING && item.App == FolderString {
-		return true
+	if item.Status == WAITING && (item.App == FolderString || item.Units != nil) {
+		return true // a split Starr item between rounds must not lose its finished units.
 	}
 
 	switch item.Status {
@@ -327,6 +329,7 @@ func historyFromExtract(itemID string, item *Extract) HistoryRecord {
 		PreFiles:       preFileKeys(item.PreFiles),
 		IDs:            cloneIDs(item.IDs),
 		Event:          item.Event,
+		Units:          cloneUnits(item.Units),
 	}
 
 	if item.DeleteDelay != 0 {
